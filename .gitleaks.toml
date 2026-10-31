@@ -1,0 +1,30 @@
+title = "LeadRescue redacted source and build scanning"
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Dependency code, ignored scanner/cache state and Git internals are scanned through their appropriate mechanisms"
+paths = [
+  '''(^|[\\/])node_modules[\\/]''',
+  '''(^|[\\/])\.cache[\\/]''',
+  '''(^|[\\/])\.git[\\/]''',
+  '''\.tsbuildinfo$'''
+]
+
+[[allowlists]]
+description = "Next.js development HMR/cache is not shipped; production browser bundles remain scanned"
+paths = ['''(^|[\\/])\.next[\\/]dev[\\/]''']
+
+[[allowlists]]
+description = "Framework-generated private signing/encryption fields; manifests must never be public HTTP assets"
+condition = "AND"
+paths = ['''(^|[\\/])\.next[\\/].*(?:\.rscinfo|\.previewinfo|prerender-manifest\.json|server-reference-manifest\.json|preview-props\.json)$''']
+regexTarget = "match"
+regexes = ['''(?:encryption\.key|encryptionKey|previewModeSigningKey|previewModeEncryptionKey)"\s*:''']
+
+[[allowlists]]
+description = "Exact synthetic signup password in a mocked auth regression; never a provider credential"
+condition = "AND"
+paths = ['''(^|[\\/])tests[\\/]security-boundaries\.test\.ts$''']
+regexTarget = "match"
+regexes = ['''password:\s*["']Synthetic1234["']''']
