@@ -34,8 +34,13 @@ export async function requireUser(): Promise<{ client: SupabaseClient; user: Use
   return { client, user: data.user };
 }
 
-export async function requireMembership(businessId: string, permission = 'read') {
-  const { client, user } = await requireUser();
+type VerifiedIdentity = Awaited<ReturnType<typeof requireUser>>;
+
+async function membershipForVerifiedUser(
+  { client, user }: VerifiedIdentity,
+  businessId: string,
+  permission: string,
+) {
   const { data, error } = await client
     .from('memberships')
     .select('role,business_id')
@@ -57,6 +62,35 @@ export async function requireMembership(businessId: string, permission = 'read')
   if (!business.data || business.data.suspended_at)
     throw new HttpError(403, 'workspace_unavailable', 'This workspace is unavailable.');
   return { client, user, role: data.role as WorkspaceRole, business: business.data };
+}
+
+export async function requireMembership(businessId: string, permission = 'read') {
+  return membershipForVerifiedUser(await requireUser(), businessId, permission);
+}
+
+/**
+ * A read-only handler may reuse its verified identity snapshot during that one
+ * incoming request. Construct this scope inside the handler, never at module
+ * scope or around a mutation. No result survives into another request, and
+ * membership/business authorization is still read fresh whenever requested.
+ */
+export function createReadAuthorizationScope() {
+  let verified: Promise<VerifiedIdentity> | undefined;
+  function readUser(): Promise<VerifiedIdentity> {
+    if (!verified) {
+      verified = requireUser().catch((error: unknown) => {
+        verified = undefined;
+        throw error;
+      });
+    }
+    return verified;
+  }
+  return {
+    requireUser: readUser,
+    async requireMembership(businessId: string, permission = 'read') {
+      return membershipForVerifiedUser(await readUser(), businessId, permission);
+    },
+  };
 }
 
 export async function requirePlatformAdmin() {

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
+import { parseMigration } from '../scripts/migration-runner';
 import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -68,7 +69,10 @@ beforeAll(async () => {
   for (const name of (await readdir(resolve('supabase/migrations')))
     .filter((n) => n.endsWith('.sql'))
     .sort())
-    await db.exec(await readFile(resolve('supabase/migrations', name), 'utf8'));
+    for (const statement of parseMigration(
+      await readFile(resolve('supabase/migrations', name), 'utf8'),
+    ).statements)
+      await db.exec(statement);
   fake.query.mockImplementation(
     async (sql: string, values: unknown[] = []) => (await db.query(sql, values)).rows,
   );

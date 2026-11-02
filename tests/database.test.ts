@@ -4,6 +4,7 @@ import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
+import { parseMigration } from '../scripts/migration-runner';
 
 // Real PostgreSQL engine compiled to WASM. auth.* stubs reproduce the claims
 // interface only; they do NOT exercise Supabase HTTP, JWT validation or GoTrue.
@@ -59,7 +60,8 @@ beforeAll(async () => {
   `);
   const path = resolve('supabase/migrations');
   for (const file of (await readdir(path)).filter((x) => x.endsWith('.sql')).sort()) {
-    await db.exec(await readFile(resolve(path, file), 'utf8'));
+    for (const statement of parseMigration(await readFile(resolve(path, file), 'utf8')).statements)
+      await db.exec(statement);
   }
   const people = [
     [ids.ownerA, 'owner-a@example.test'],

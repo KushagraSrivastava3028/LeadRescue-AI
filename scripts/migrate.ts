@@ -1,12 +1,20 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import pg from 'pg';
+import {
+  applyVersionedMigration,
+  assertMigrationConnection,
+  MigrationReviewRequired,
+} from './migration-runner';
 if (existsSync('.env.local')) process.loadEnvFile('.env.local');
 async function main() {
-  const connection = process.env.DATABASE_URL;
+  const connection = process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL;
   if (!connection)
     throw new Error('DATABASE_URL is required. Use a restricted operator session for migrations.');
+  assertMigrationConnection(
+    connection,
+    process.env.MIGRATION_DATABASE_URL ? 'direct' : process.env.DATABASE_CONNECTION_MODE,
+  );
   const pool = new pg.Pool({
     connectionString: connection,
     max: 1,
@@ -22,29 +30,7 @@ async function main() {
       .filter((n) => /^\d+.*\.sql$/.test(n))
       .sort()) {
       const sql = readFileSync(resolve('supabase/migrations', name), 'utf8');
-      const digest = createHash('sha256').update(sql).digest('hex');
-      const existing = await client.query(
-        'select sha256 from private.schema_migrations where name=$1',
-        [name],
-      );
-      if (existing.rowCount) {
-        if (existing.rows[0].sha256 !== digest)
-          throw new Error(`Migration changed after application: ${name}`);
-        continue;
-      }
-      await client.query('begin');
-      try {
-        await client.query(sql);
-        await client.query('insert into private.schema_migrations(name,sha256) values($1,$2)', [
-          name,
-          digest,
-        ]);
-        await client.query('commit');
-      } catch (error) {
-        await client.query('rollback');
-        throw error;
-      }
-      console.info(`Applied ${name}`);
+      if (await applyVersionedMigration(client, name, sql)) console.info(`Applied ${name}`);
     }
   } finally {
     await client.query('select pg_advisory_unlock(734202610)').catch(() => undefined);
@@ -52,7 +38,8 @@ async function main() {
     await pool.end();
   }
 }
-main().catch(() => {
+main().catch((error) => {
+  if (error instanceof MigrationReviewRequired) console.error(error.message);
   console.error(
     'Migration failed. Review migration status with the operator; database details are redacted.',
   );

@@ -2,7 +2,12 @@ import { createHash, randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { workspaceMutationSchema, uuidSchema } from '@/lib/validation';
-import { requireMembership, requireRecentSignIn, requireUser } from '@/lib/server/authorization';
+import {
+  createReadAuthorizationScope,
+  requireMembership,
+  requireRecentSignIn,
+  requireUser,
+} from '@/lib/server/authorization';
 import {
   checkDatabaseError,
   enforceRateLimit,
@@ -20,6 +25,7 @@ export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   try {
+    const access = createReadAuthorizationScope();
     const params = new URL(request.url).searchParams;
     if ([...params.keys()].some((key) => !['businessId', 'days'].includes(key)))
       throw new HttpError(400, 'invalid_request', 'Check the requested workspace.');
@@ -31,7 +37,7 @@ export async function GET(request: Request) {
       .max(90)
       .parse(params.get('days') ?? 7);
     if (!businessId) {
-      const { client, user } = await requireUser();
+      const { client, user } = await access.requireUser();
       const memberships = await client
         .from('memberships')
         .select('business_id')
@@ -54,7 +60,7 @@ export async function GET(request: Request) {
     }
     if (!uuidSchema.safeParse(businessId).success)
       throw new HttpError(400, 'invalid_request', 'Check the requested workspace.');
-    const { client, user, business, role } = await requireMembership(businessId!);
+    const { client, user, business, role } = await access.requireMembership(businessId!);
     await enforceRateLimit('workspace:read', `${businessId}:${user.id}`, 180, 60);
     const since = new Date(Date.now() - days * 86_400_000).toISOString();
     const [

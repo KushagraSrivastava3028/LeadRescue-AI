@@ -10,6 +10,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:load": "node scripts/loadtest-run.mjs",
+    "db:benchmark": "node --import=tsx scripts/db-performance/benchmark.ts",
     "worker": "node --conditions=react-server --import=tsx scripts/worker.mjs",
     "db:migrate": "node --import=tsx scripts/migrate.ts",
     "check:env": "node scripts/runtime-env.mjs",

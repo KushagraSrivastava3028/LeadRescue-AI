@@ -1,5 +1,6 @@
 import { validateEnvironment } from './runtime-env.mjs';
 try {
+  process.env.LEADRESCUE_PROCESS_KIND = 'worker';
   validateEnvironment({ worker: true });
   await import('../src/worker/index.ts');
 } catch (error) {

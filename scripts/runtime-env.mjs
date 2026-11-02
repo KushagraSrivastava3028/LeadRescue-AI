@@ -63,8 +63,33 @@ export function validateEnvironment({
     !['x-real-ip', 'cf-connecting-ip'].includes(read('TRUSTED_CLIENT_IP_HEADER'))
   )
     invalid.add('TRUSTED_CLIENT_IP_HEADER');
-  if (worker || enabled('TWILIO') || enabled('BILLING') || enabled('CALENDAR') || enabled('AI'))
-    url('DATABASE_URL', ['postgres:', 'postgresql:']);
+  if (worker || enabled('TWILIO') || enabled('BILLING') || enabled('CALENDAR') || enabled('AI')) {
+    const connectionName =
+      worker && read('WORKER_DATABASE_URL') ? 'WORKER_DATABASE_URL' : 'DATABASE_URL';
+    const connection = url(connectionName, ['postgres:', 'postgresql:']);
+    const mode = worker
+      ? read('WORKER_DATABASE_CONNECTION_MODE') || read('DATABASE_CONNECTION_MODE')
+      : read('DATABASE_CONNECTION_MODE');
+    if (worker && (connection?.port === '6543' || mode === 'transaction'))
+      invalid.add(connectionName);
+  }
+  if (
+    read('APPLICATION_RUNTIME') &&
+    !['persistent', 'serverless'].includes(read('APPLICATION_RUNTIME'))
+  )
+    invalid.add('APPLICATION_RUNTIME');
+  for (const name of ['DATABASE_CONNECTION_MODE', 'WORKER_DATABASE_CONNECTION_MODE'])
+    if (read(name) && !['direct', 'session', 'transaction'].includes(read(name))) invalid.add(name);
+  for (const [name, ceiling] of [
+    ['DB_POOL_MAX', 50],
+    ['WORKER_DB_POOL_MAX', 50],
+    ['QUEUE_DB_POOL_MAX', 20],
+  ])
+    if (
+      read(name) &&
+      (!/^\d+$/.test(read(name)) || Number(read(name)) < 1 || Number(read(name)) > ceiling)
+    )
+      invalid.add(name);
   const positive = (name) => {
     if (!/^\d+$/.test(requireValue(name)) || Number(read(name)) < 1) invalid.add(name);
   };

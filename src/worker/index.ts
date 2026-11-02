@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import { PgBoss } from 'pg-boss';
 import { z } from 'zod';
 import { databaseUrl } from '../lib/server/providers/config';
+import { assertSessionConnection, queuePoolMax } from '../lib/server/providers/pool-settings';
 import { closeProviderDatabase, query, transaction } from '../lib/server/providers/database';
 import { processTwilioEvent } from './events';
 import { dispatchMessage } from './dispatch';
@@ -17,6 +18,11 @@ if (existsSync('.env.local')) process.loadEnvFile('.env.local');
 if (process.env.NODE_ENV === 'production' && process.env.DEMO_MODE === 'true')
   throw new Error('Production worker refuses demo mode');
 const workerId = randomUUID();
+process.env.LEADRESCUE_PROCESS_KIND = 'worker';
+assertSessionConnection(
+  databaseUrl(),
+  process.env.WORKER_DATABASE_CONNECTION_MODE || process.env.DATABASE_CONNECTION_MODE,
+);
 const QUEUE = 'leadrescue-events';
 const jobSchema = z
   .object({
@@ -30,7 +36,7 @@ type JobData = z.infer<typeof jobSchema>;
 const boss = new PgBoss({
   connectionString: databaseUrl(),
   schema: 'pgboss',
-  max: 5,
+  max: queuePoolMax(),
   application_name: 'leadrescue-worker',
   ...(process.env.NODE_ENV === 'production' ? { ssl: { rejectUnauthorized: true } } : {}),
 });

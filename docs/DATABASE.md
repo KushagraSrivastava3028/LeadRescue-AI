@@ -2,7 +2,7 @@
 
 The application uses Supabase Auth and PostgreSQL. `supabase/migrations` is the authoritative, ordered schema. Apply it to separate development, staging, and production Supabase projects. Use a restricted migration operator; do not give the web runtime DDL privileges. Pool application connections, require verified TLS for remote PostgreSQL, and place backups outside the web/static root.
 
-Run `supabase start` and `supabase db reset` when Docker and the Supabase CLI are available. Local callback allowlists are in `supabase/config.toml`. Never copy local callback URLs or synthetic seed records into a production migration. `supabase/seed.sql` contains only explicitly synthetic, inactive records and no users, passwords, memberships, admin records, consent grants, active trial, paid subscription or verified phone.
+The repository runner (`npm run db:migrate`) applies ordinary migrations transactionally and honors the explicit nontransactional directive in index migration `0007`, executing its concurrent builds separately. Use a direct/session operator connection; transaction pooling and whole-file transaction wrappers are unsuitable for this migration. Verify any Supabase CLI reset/push workflow supports this behavior before using it; local Docker/CLI execution was not available for verification. Local callback allowlists are in `supabase/config.toml`. Never copy local callback URLs or synthetic seed records into a production migration. `supabase/seed.sql` contains only explicitly synthetic, inactive records and no users, passwords, memberships, admin records, consent grants, active trial, paid subscription or verified phone. See [index apply/rollback details](DATABASE_PERFORMANCE.md).
 
 ## Boundaries
 

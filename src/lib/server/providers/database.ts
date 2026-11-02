@@ -1,18 +1,24 @@
 import 'server-only';
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
 import { databaseUrl } from './config';
+import { applicationPoolSettings, assertSessionConnection, isWorkerProcess } from './pool-settings';
 
 let pool: Pool | undefined;
 export function providerDatabase(): Pool {
-  if (!pool)
+  if (!pool) {
+    const connectionString = databaseUrl();
+    if (isWorkerProcess())
+      assertSessionConnection(
+        connectionString,
+        process.env.WORKER_DATABASE_CONNECTION_MODE || process.env.DATABASE_CONNECTION_MODE,
+      );
     pool = new Pool({
-      connectionString: databaseUrl(),
-      max: 10,
-      connectionTimeoutMillis: 5000,
-      idleTimeoutMillis: 30000,
+      connectionString,
+      ...applicationPoolSettings(),
       application_name: 'leadrescue',
       ...(process.env.NODE_ENV === 'production' ? { ssl: { rejectUnauthorized: true } } : {}),
     });
+  }
   return pool;
 }
 export async function transaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {

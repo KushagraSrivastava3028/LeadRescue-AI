@@ -28,7 +28,11 @@ export function appOrigin(): string {
   return httpsOrigin.parse(required('APP_ORIGIN')).replace(/\/$/, '');
 }
 export function databaseUrl(): string {
-  return z.string().url().parse(required('DATABASE_URL'));
+  const name =
+    process.env.LEADRESCUE_PROCESS_KIND === 'worker' && process.env.WORKER_DATABASE_URL
+      ? 'WORKER_DATABASE_URL'
+      : 'DATABASE_URL';
+  return z.string().url().parse(required(name));
 }
 export function twilioConfig() {
   if (!integrationEnabled('TWILIO')) throw new CapabilityUnavailable('Telephony');
