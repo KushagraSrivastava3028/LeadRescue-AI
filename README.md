@@ -1,8 +1,155 @@
-# LeadRescue
+<div align="center">
 
-A Next.js application for eligible missed-call recovery for U.S. roofing teams, built from the supplied specification and visual references. Includes a usable synthetic demo, Supabase-backed account/workspace APIs, signed provider webhooks, and a separate durable PostgreSQL worker.
+<img src="https://capsule-render.vercel.app/api?type=waving&amp;color=087f5b&amp;height=200&amp;section=header&amp;text=LeadRescue%20AI&amp;fontSize=60&amp;fontColor=ffffff&amp;animation=fadeIn" alt="LeadRescue AI" width="100%" />
 
-**Local implementation is verified; live services are not activated.** No real messages, charges, calls, emails, or calendar bookings were performed. Production setup requires the credentials, approvals, and acceptance tests in [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md). Terms and Privacy are explicitly marked drafts.
+# 📞 LeadRescue AI
+
+### Recover missed enquiries. Qualify leads. Keep your team in control.
+
+<p>
+A full-stack missed-call recovery platform for U.S. roofing teams, combining
+eligible SMS follow-up, AI qualification, a shared inbox, inspection requests
+and subscription management.
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/Next.js-16-000000?style=for-the-badge&amp;logo=nextdotjs&amp;logoColor=white" alt="Next.js 16" />
+  <img src="https://img.shields.io/badge/React-19-20232A?style=for-the-badge&amp;logo=react&amp;logoColor=61DAFB" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&amp;logo=typescript&amp;logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&amp;logo=supabase&amp;logoColor=white" alt="Supabase" />
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&amp;logo=postgresql&amp;logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/Twilio-F22F46?style=for-the-badge&amp;logo=twilio&amp;logoColor=white" alt="Twilio" />
+  <img src="https://img.shields.io/badge/Stripe-635BFF?style=for-the-badge&amp;logo=stripe&amp;logoColor=white" alt="Stripe" />
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&amp;logo=docker&amp;logoColor=white" alt="Docker" />
+</p>
+
+<p>
+  <a href="https://github.com/KushagraSrivastava3028/LeadRescue-AI/actions/workflows/ci.yml"><img src="https://github.com/KushagraSrivastava3028/LeadRescue-AI/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <img src="https://img.shields.io/badge/Auth-Supabase-3FCF8E?style=flat-square" alt="Supabase Auth" />
+  <img src="https://img.shields.io/badge/Status-Local_implementation_verified-f59e0b?style=flat-square" alt="Local implementation verified; not deployed" />
+</p>
+
+[Quick start](#quick-start) · [Features](#features) · [Architecture](#architecture) · [Deployment](#deployment-web-and-worker) · [Remaining work](REMAINING_WORK.md)
+
+</div>
+
+---
+
+## Overview
+
+**LeadRescue AI** helps roofing teams keep eligible missed-call enquiries moving.
+The workspace brings conversations, customer details, lead status, callback tasks
+and inspection requests together, with explicit human takeover when needed.
+
+> **Project status:** Local implementation is verified; live services are not
+> activated and the app is not deployed. No real messages, charges, calls, emails
+> or calendar bookings were performed. Integration code exists; accounts,
+> credentials, approvals and hosted acceptance tests remain necessary. See
+> [remaining work](REMAINING_WORK.md) and the [launch checklist](LAUNCH_CHECKLIST.md).
+> Terms and Privacy are drafts.
+
+### Recovery workflow
+
+```text
+Missed call and verified outcome
+                ↓
+Check consent, suppression, eligibility and usage limits
+                ↓
+Eligible SMS follow-up and AI qualification
+                ↓
+Team inbox → human takeover or callback task
+                ↓
+Inspection request → customer confirmation → calendar booking
+                ↓
+Owner tracks the result
+```
+
+A missed call alone never grants consent to send an SMS. Uncertain provider
+outcomes are retained for reconciliation instead of blindly retried.
+
+## Features
+
+| Area                  | Implemented capabilities                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------ |
+| Responsive workspace  | Overview metrics, recent enquiries, filters and mobile navigation                                |
+| Shared inbox          | Conversation history, manual takeover/resume, reply intents and callback tasks                   |
+| Lead management       | Enquiry creation, status updates, owner-confirmed won jobs and private exports                   |
+| Accounts and teams    | Signup, verification, recovery, MFA, invitations and owner/staff/viewer permissions              |
+| Business settings     | Services, ZIP codes, timezone, weekday hours, FAQs and assistant restrictions                    |
+| Eligible recovery     | Signed call/SMS callbacks, consent/suppression gates, quiet hours and cooldowns                  |
+| AI qualification      | Bounded extraction, validated output, controlled reply templates and spending ceilings           |
+| Inspection scheduling | Customer confirmation, availability checks, duration/buffer rules and Google OAuth               |
+| Subscriptions         | Stripe checkout/portal adapters, trial prerequisites, usage caps and subscription reconciliation |
+| Operations            | Durable PostgreSQL jobs/outbox, retries, deduplication, health checks and audited admin holds    |
+
+The demo uses synthetic browser-local data. Real integration behavior requires
+provider configuration and staging verification.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Team[Roofing team] --> Web[Next.js website and workspace]
+    Web --> Auth[Supabase Auth]
+    Web --> API[Server route handlers]
+    API --> DB[(PostgreSQL: tenant data, usage and outbox)]
+    Twilio[Twilio voice and SMS] --> Hooks[Signed webhook admission]
+    Stripe[Stripe subscriptions] --> Hooks
+    Hooks --> DB
+    Worker[Persistent pg-boss worker] --> DB
+    Worker --> Twilio
+    Worker --> AI[OpenAI qualification]
+    Worker --> Calendar[Google Calendar]
+    API --> Stripe
+    API --> Calendar
+```
+
+The web service and worker run as separate Node processes. Normal workspace
+access uses Supabase Auth and RLS. Privileged worker SQL is explicitly tenant
+scoped. Provider secrets remain server-side; no Redis service is required.
+
+## Technology stack
+
+| Layer                | Technologies                                                                      |
+| -------------------- | --------------------------------------------------------------------------------- |
+| Application          | Next.js 16, React 19, TypeScript, CSS and Lucide icons                            |
+| Backend/auth         | Next.js Route Handlers, Supabase Auth and PostgreSQL RLS                          |
+| Jobs and database    | pg-boss, node-postgres, versioned SQL migrations                                  |
+| Integrations         | Twilio, OpenAI, Stripe and Google Calendar                                        |
+| Validation/security  | Zod, signed cookies, provider signature verification and AES-GCM token encryption |
+| Quality              | Vitest, PGlite, Playwright, k6, ESLint, Gitleaks and GitHub Actions               |
+| Deployment packaging | Separate Node web/worker processes; Docker targets and Compose configuration      |
+
+## Project structure
+
+```text
+LeadRescue-AI/
+├── src/app/                 # Public/account pages, workspace and API handlers
+├── src/components/          # Marketing, workspace and account components
+├── src/lib/server/          # Authorization, security and provider adapters
+├── src/worker/              # Durable recovery, billing and booking handlers
+├── supabase/migrations/     # Versioned schema, RLS and measured indexes
+├── supabase/rollback/       # Reviewed performance-index rollback
+├── tests/                   # Unit, SQL integration and browser regressions
+├── load-tests/              # Guarded local/staging k6 journeys
+├── scripts/                 # Migration, runtime, benchmark and scanning tools
+├── docs/                    # Integration, security and scaling procedures
+├── .github/                 # CI and dependency-update configuration
+├── REMAINING_WORK.md        # Ordered setup and release checklist
+└── LAUNCH_CHECKLIST.md      # Detailed external acceptance gates
+```
+
+## Quick start
+
+```sh
+git clone https://github.com/KushagraSrivastava3028/LeadRescue-AI.git
+cd LeadRescue-AI
+npm ci
+npm run dev
+```
 
 ## Run the demo
 
@@ -85,3 +232,75 @@ npm run test:load -- --profile full --base-url http://127.0.0.1:3100 --label loc
 ```
 
 The load command requires an explicitly guarded isolated local/staging server; it refuses production targets. Read [load-test setup](docs/LOAD_TESTING.md) before running it. Keep `LOAD_TESTING_ENABLED=false` for an ordinary deployed application. No new service or infrastructure purchase is required by these changes.
+
+The recorded local suite passed **160 regression tests** and **11 browser tests**.
+The compiled public/demo k6 workload completed **28,025 requests**, zero failures
+and an overall p95 of **40.42 ms**, reaching 100 virtual users. These historical
+local results do not certify authenticated hosted capacity or provider throughput.
+
+## Security and access
+
+Backend permissions are enforced independently of UI controls.
+
+| Action                                          | Viewer | Staff | Owner |
+| ----------------------------------------------- | :----: | :---: | :---: |
+| Read own workspace and enquiries                |  Yes   |  Yes  |  Yes  |
+| Handle leads, callbacks and conversations       |   —    |  Yes  |  Yes  |
+| Request an inspection                           |   —    |  Yes  |  Yes  |
+| Confirm a won job                               |   —    |   —   |  Yes  |
+| Manage business settings, team and integrations |   —    |   —   |  Yes  |
+| Manage billing and private exports              |   —    |   —   |  Yes  |
+
+Platform operators require separate restricted bootstrap and verified MFA;
+business ownership does not grant platform administration. Controls include
+tenant RLS, session checks, origin validation, strict schemas, rate limits,
+per-request CSP nonces, signed webhooks and encrypted provider tokens.
+Hosted enforcement and independent security review remain release gates.
+
+## Remaining work
+
+- Provision Supabase and SMTP; verify real accounts, tenant permissions and MFA.
+- Deploy the web and worker, connect a domain and verify HTTPS and host limits.
+- Configure and accept Twilio, OpenAI, Stripe and Google Calendar individually.
+- Complete authenticated staging load, native database concurrency and recovery tests.
+- Finalize monitoring, backups/restoration, retention and reviewed legal documents.
+- Resolve or document dependency findings and complete independent security review.
+
+Use **[REMAINING_WORK.md](REMAINING_WORK.md)** for the ordered checklist.
+
+## Documentation
+
+| Guide                                           | Contents                                              |
+| ----------------------------------------------- | ----------------------------------------------------- |
+| [Launch checklist](LAUNCH_CHECKLIST.md)         | Provider and production acceptance gates              |
+| [Database](docs/DATABASE.md)                    | Schema, permissions, migration and restore procedures |
+| [Integrations](docs/INTEGRATIONS.md)            | Queue, Twilio, AI, Stripe and Google Calendar         |
+| [Security model](SECURITY.md)                   | Threats, permissions, secrets and incident response   |
+| [Security controls](SECURITY_CONTROL_MATRIX.md) | Local evidence and remaining verification             |
+| [Security audit](SECURITY_AUDIT.md)             | Historical checks, findings and limitations           |
+| [Scaling report](SCALING_REPORT.md)             | Measured changes, load results and rollback           |
+| [Load testing](docs/LOAD_TESTING.md)            | Safe installation, test targets and commands          |
+
+## Contributing
+
+Create a focused branch, review the security and launch boundaries, and run the
+checks relevant to your change. Include validation and any remaining limitations
+in your pull request. Never commit credentials or real customer records.
+
+## Maintainer
+
+Maintained by [Kushagra Srivastava](https://github.com/KushagraSrivastava3028).
+No license grant is declared in this repository; confirm licensing with the
+maintainer before redistribution.
+
+---
+
+<div align="center">
+
+### Your missed calls. Recovered with your team in control.
+
+Built with Next.js, Supabase, PostgreSQL and a durable Node worker.
+
+<img src="https://capsule-render.vercel.app/api?type=waving&amp;color=087f5b&amp;height=100&amp;section=footer" alt="LeadRescue AI footer" width="100%" />
+
+</div>
