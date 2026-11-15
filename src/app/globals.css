@@ -8788,3 +8788,54 @@ strong {
     font-size: 22px;
   }
 }
+
+/* Multi-industry selection and public catalog. */
+.sidebar {
+  overflow-y: auto;
+}
+.industry-section {
+  padding-block: 48px;
+}
+.industry-section h2 {
+  font-size: clamp(24px, 3vw, 36px);
+  margin: 12px 0;
+}
+.industry-section p {
+  color: var(--muted);
+  max-width: 680px;
+  line-height: 1.6;
+}
+.industry-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 22px 0;
+}
+.industry-tags span {
+  padding: 10px 16px;
+  border: 1px solid #dce8df;
+  border-radius: 24px;
+  background: #f2f8f3;
+  color: #075b37;
+  font-size: 14px;
+}
+.industry-demo-picker {
+  display: grid;
+  gap: 5px;
+  padding: 0 20px;
+  margin: 12px 0 18px;
+  font-size: 12px;
+  color: #526071;
+}
+.industry-demo-picker select {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #dce3e6;
+  border-radius: 8px;
+  background: white;
+  padding: 8px;
+  color: #13231d;
+}
+.industry-demo-picker small {
+  font-size: 10px;
+}

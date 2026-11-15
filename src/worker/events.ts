@@ -118,7 +118,7 @@ export async function processTwilioEvent(
               businessId,
               enquiry.conversationId,
               enquiry.contactId,
-              recoveryText(profile.rows[0]?.name ?? 'the roofing team'),
+              recoveryText(profile.rows[0]?.name ?? 'the service team'),
               `recovery:${p.CallSid}`,
             ],
           );

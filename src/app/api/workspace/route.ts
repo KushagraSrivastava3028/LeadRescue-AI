@@ -85,7 +85,7 @@ export async function GET(request: Request) {
       client
         .from('business_profiles')
         .select(
-          'name,services,zip_codes,timezone,opening_hours,faqs,escalation_phone,assistant_restrictions,quiet_start,quiet_end',
+          'name,industry,services,intake_questions,appointment_label,zip_codes,timezone,opening_hours,faqs,escalation_phone,assistant_restrictions,quiet_start,quiet_end',
         )
         .eq('business_id', businessId)
         .maybeSingle(),
@@ -256,10 +256,11 @@ export async function POST(request: Request) {
       await enforceRateLimit(`workspace:${input.action}`, user.id, 5, 3600);
       const result =
         input.action === 'create-business'
-          ? await client.rpc('create_business', {
+          ? await client.rpc('create_business_for_industry', {
               p_name: input.name,
               p_timezone: input.timezone,
               p_zip_codes: input.zipCodes,
+              p_industry: input.industry,
             })
           : await client.rpc('accept_invitation', { p_token: input.token });
       checkDatabaseError(result.error);
@@ -371,7 +372,7 @@ export async function POST(request: Request) {
             appointmentId: data,
             customerConfirmationUrl: `${getServerEnv().APP_ORIGIN}/confirm-inspection#token=${token}`,
             message:
-              'Inspection requested. Share the confirmation link with the customer; the appointment is booked only after their confirmation and a successful calendar check.',
+              'Appointment requested. Share the confirmation link with the customer; the appointment is booked only after their confirmation and a successful calendar check.',
           },
           202,
         );
@@ -381,6 +382,13 @@ export async function POST(request: Request) {
           .from('business_profiles')
           .update({
             name: input.name,
+            ...(input.industry !== undefined ? { industry: input.industry } : {}),
+            ...(input.intakeQuestions !== undefined
+              ? { intake_questions: input.intakeQuestions }
+              : {}),
+            ...(input.appointmentLabel !== undefined
+              ? { appointment_label: input.appointmentLabel }
+              : {}),
             services: input.services,
             zip_codes: input.zipCodes,
             timezone: input.timezone,
@@ -476,7 +484,7 @@ export async function POST(request: Request) {
           const created = await billing.ensureBillingCustomer({
             businessId: input.businessId,
             email: user.email!,
-            name: business.data.name ?? 'Roofing contractor',
+            name: business.data.name ?? 'Service business',
           });
           customerId = created.customerId;
         }

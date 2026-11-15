@@ -14,6 +14,7 @@ interface AppointmentRow {
   calendar_id: string;
   refresh_token_ciphertext: string;
   timezone: string;
+  appointment_label: string;
   opening_hours: Record<string, { open: string; close: string; enabled?: boolean }>;
 }
 
@@ -48,13 +49,13 @@ export async function bookAppointment(businessId: string, appointmentId: string)
       businessId,
       type: 'booking_request',
       message:
-        'An inspection request was saved. Calendar is not configured; contact the customer to arrange it.',
+        'An appointment request was saved. Calendar is not configured; contact the customer to arrange it.',
     });
     return;
   }
   const appointment = await transaction(async (db) => {
     const rows = await db.query<AppointmentRow>(
-      'select a.*,c.calendar_id,c.refresh_token_ciphertext,p.timezone,p.opening_hours from public.appointments a join public.calendar_connections c on c.business_id=a.business_id and c.id=a.calendar_connection_id and c.revoked_at is null join public.business_profiles p on p.business_id=a.business_id where a.business_id=$1 and a.id=$2 for update of a',
+      'select a.*,c.calendar_id,c.refresh_token_ciphertext,p.timezone,p.opening_hours,p.appointment_label from public.appointments a join public.calendar_connections c on c.business_id=a.business_id and c.id=a.calendar_connection_id and c.revoked_at is null join public.business_profiles p on p.business_id=a.business_id where a.business_id=$1 and a.id=$2 for update of a',
       [businessId, appointmentId],
     );
     const row = rows.rows[0];
@@ -70,7 +71,7 @@ export async function bookAppointment(businessId: string, appointmentId: string)
         [businessId, appointmentId],
       );
       await db.query(
-        "insert into public.notifications(business_id,lead_id,type,message) values($1,$2,'booking_request','Automation is unavailable. Contact the customer to arrange their inspection request.')",
+        "insert into public.notifications(business_id,lead_id,type,message) values($1,$2,'booking_request','Automation is unavailable. Contact the customer to arrange their appointment request.')",
         [businessId, row.lead_id],
       );
       return null;
@@ -120,7 +121,7 @@ export async function bookAppointment(businessId: string, appointmentId: string)
       start: appointment.start_at,
       end: appointment.end_at,
       timezone: appointment.timezone,
-      summary: 'Roof inspection request',
+      summary: `${appointment.appointment_label} request`,
       customerConfirmedAt: appointment.customer_confirmed_at
         ? new Date(appointment.customer_confirmed_at)
         : null,
@@ -139,7 +140,7 @@ export async function bookAppointment(businessId: string, appointmentId: string)
         [businessId, appointment.lead_id],
       );
       await db.query(
-        "insert into public.notifications(business_id,lead_id,type,message) values($1,$2,'booking_confirmed','The inspection was created in the connected calendar and saved locally.')",
+        "insert into public.notifications(business_id,lead_id,type,message) values($1,$2,'booking_confirmed','The appointment was created in the connected calendar and saved locally.')",
         [businessId, appointment.lead_id],
       );
     });

@@ -133,6 +133,10 @@ access another business or exceed their role permissions.
 
 ## 8. Complete hosted scaling verification
 
+- [ ] Apply migration `0008` and test multi-industry onboarding, owner settings,
+      tenant isolation and industry-specific qualification against hosted Supabase.
+      Evaluate real AI replies for every offered industry before enabling automation.
+
 - [ ] Inspect the actual database's frequent/slow queries using the included
       [read-only inspection helper](scripts/db-performance/inspect-live.ts), using
       `pg_stat_statements` when available.

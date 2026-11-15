@@ -94,7 +94,7 @@ export async function createCalendarBooking(input: {
   if (!input.customerConfirmedAt) throw new Error('Customer confirmation required');
   const duration = input.end.getTime() - input.start.getTime();
   if (duration !== 60 * 60_000 || input.start.getTime() <= Date.now())
-    throw new Error('Inspection must be a future 60-minute slot');
+    throw new Error('Appointment must be a future 60-minute slot');
   new Intl.DateTimeFormat('en-US', { timeZone: input.timezone }).format(input.start);
   const token = await accessToken(input.refreshTokenCiphertext, input.businessId);
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };

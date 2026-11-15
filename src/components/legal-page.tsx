@@ -36,7 +36,7 @@ export function LegalPage({ type }: { type: 'privacy' | 'terms' }) {
         : [
             [
               'Service and eligibility',
-              'LeadRescue assists roofing businesses with eligible missed-call follow-up. The contractor remains responsible for the accuracy of its approved business facts and for confirming work, estimates, insurance matters, and emergency response.',
+              'LeadRescue assists service businesses with eligible missed-call follow-up. The contractor remains responsible for the accuracy of its approved business facts and for confirming work, estimates, insurance matters, and emergency response.',
             ],
             [
               'Subscription and trial',

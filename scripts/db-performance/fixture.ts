@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { businessId, ownerId } from './queries';
 
 /** Full production migrations with synthetic auth interfaces, never hosted Auth. */
-export async function createFixture(scale = 'small') {
+export async function createFixture(scale = 'small', includeIndustry = true) {
   const db = await PGlite.create({ extensions: { pgcrypto } });
   await db.exec(`
     create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
@@ -20,6 +20,8 @@ export async function createFixture(scale = 'small') {
   const directory = resolve('supabase/migrations');
   for (const file of (await readdir(directory)).filter((f) => /^000[1-6]_.*\.sql$/.test(f)).sort())
     await db.exec(await readFile(resolve(directory, file), 'utf8'));
+  if (includeIndustry)
+    await db.exec(await readFile(resolve(directory, '0008_multi_industry.sql'), 'utf8'));
   await db.query('insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())', [
     ownerId,
     'index-benchmark@example.test',

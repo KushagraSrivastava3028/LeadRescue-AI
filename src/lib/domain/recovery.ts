@@ -156,17 +156,30 @@ export function qualifyLead(
 }
 
 export function recoveryText(businessName: string): string {
-  return `Hi, this is ${businessName.slice(0, 80)}'s virtual assistant. Sorry we missed your call. Are you still looking for help with your roof? Reply STOP to opt out.`;
+  return `Hi, this is ${businessName.slice(0, 80)}'s virtual assistant. Sorry we missed your call. Are you still looking for help? Reply STOP to opt out.`;
 }
 
 export function nextQuestion(
-  data: { service: string | null; zip: string | null; urgent: boolean },
+  data: {
+    service: string | null;
+    zip: string | null;
+    urgent: boolean;
+    intakeAnswers?: { question: string; answer: string | null }[];
+  },
   businessName: string,
+  profile: { services?: string[]; intakeQuestions?: string[]; appointmentLabel?: string } = {},
 ): string {
   if (data.urgent)
-    return `I've flagged your request for ${businessName.slice(0, 80)} to review. Stay clear of roof hazards. If there is immediate danger, contact emergency services. A team member will follow up.`;
+    return `I've flagged your request for ${businessName.slice(0, 80)} to review. Stay clear of hazards. If there is immediate danger, contact emergency services. A team member will follow up.`;
   if (!data.service)
-    return 'What can we help with: a roof leak, storm damage, inspection, or roof replacement?';
+    return profile.services?.length
+      ? `What can we help with: ${profile.services.slice(0, 4).join(', ')}?`
+      : 'What service do you need help with?';
   if (!data.zip) return 'Thanks. What is the ZIP code for the property?';
-  return "Thanks for the details. I've saved your request for the team. What is the best time for a callback? An inspection is only confirmed after the team checks availability.";
+  const missing = profile.intakeQuestions?.find(
+    (question) =>
+      !data.intakeAnswers?.some((item) => item.question === question && item.answer?.trim()),
+  );
+  if (missing) return missing;
+  return `Thanks for the details. I've saved your request for the team. What is the best time for a callback? Your ${profile.appointmentLabel || 'appointment'} is only confirmed after the team checks availability.`;
 }

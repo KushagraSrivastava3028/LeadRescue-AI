@@ -18,6 +18,9 @@ interface ConversationRow {
   ai_turns: number;
   name: string;
   services: string[];
+  industry: string;
+  intake_questions: string[];
+  appointment_label: string;
   zip_codes: string[];
   daily_ai_cost_limit_minor: number;
 }
@@ -48,7 +51,7 @@ export async function qualifyMessage(
   const input = await transaction(async (db) => {
     await db.query('select pg_advisory_xact_lock(749301)'); // serializes platform budget reservation across worker processes
     const conversations = await db.query<ConversationRow>(
-      'select c.*,p.name,p.services,p.zip_codes,e.daily_ai_cost_limit_minor from public.conversations c join public.business_profiles p on p.business_id=c.business_id join public.entitlements e on e.business_id=c.business_id where c.business_id=$1 and c.id=$2 for update of c,e',
+      'select c.*,p.name,p.services,p.zip_codes,p.industry,p.intake_questions,p.appointment_label,e.daily_ai_cost_limit_minor from public.conversations c join public.business_profiles p on p.business_id=c.business_id join public.entitlements e on e.business_id=c.business_id where c.business_id=$1 and c.id=$2 for update of c,e',
       [businessId, conversationId],
     );
     const row = conversations.rows[0];
@@ -97,12 +100,10 @@ export async function qualifyMessage(
     );
     return {
       row,
-      messages: messages.rows
-        .reverse()
-        .map((m) => ({
-          role: m.direction === 'inbound' ? ('customer' as const) : ('assistant' as const),
-          body: m.body,
-        })),
+      messages: messages.rows.reverse().map((m) => ({
+        role: m.direction === 'inbound' ? ('customer' as const) : ('assistant' as const),
+        body: m.body,
+      })),
     };
   });
   if (!input) return;
@@ -111,6 +112,8 @@ export async function qualifyMessage(
     result = qualificationSchema.parse(
       await qualifyConversation({
         services: input.row.services,
+        industry: input.row.industry,
+        intakeQuestions: input.row.intake_questions,
         zipCodes: input.row.zip_codes,
         messages: input.messages,
       }),
@@ -160,7 +163,12 @@ export async function qualifyMessage(
         businessId,
         input.row.lead_id,
         result.service,
-        result.summary,
+        [
+          result.summary,
+          ...result.intakeAnswers
+            .filter((item) => item.answer)
+            .map((item) => `${item.question} ${item.answer}`),
+        ].join('\n'),
         result.urgent ? 'needs_callback' : qualified ? 'qualified' : 'ai_replying',
       ],
     );
@@ -178,7 +186,11 @@ export async function qualifyMessage(
       businessId,
       conversationId,
       contactId: input.row.contact_id,
-      body: nextQuestion(result, input.row.name),
+      body: nextQuestion(result, input.row.name, {
+        services: input.row.services,
+        intakeQuestions: input.row.intake_questions,
+        appointmentLabel: input.row.appointment_label,
+      }),
       key: `reply:${messageId}`,
     });
     if (qualified || result.urgent)
@@ -189,8 +201,8 @@ export async function qualifyMessage(
           input.row.lead_id,
           result.urgent ? 'urgent_enquiry' : 'qualified_lead',
           result.urgent
-            ? 'A potentially hazardous roofing enquiry requires human review. No emergency response was promised.'
-            : 'A roofing enquiry matches your services and ZIP codes. Review it and arrange a callback.',
+            ? 'A potentially hazardous enquiry requires human review. No emergency response was promised.'
+            : 'An enquiry matches your services and ZIP codes. Review it and arrange a callback.',
         ],
       );
   });

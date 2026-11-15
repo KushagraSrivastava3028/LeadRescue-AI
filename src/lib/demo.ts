@@ -1,3 +1,5 @@
+import { getIndustry } from './industries';
+
 export type LeadStatus =
   'Needs callback' | 'Booked' | 'AI replying' | 'New enquiry' | 'Qualified' | 'Won' | 'Closed';
 export type ChatMessage = {
@@ -212,6 +214,9 @@ export const demoLeads: Lead[] = [
   },
 ];
 export const defaultSettings = {
+  industry: 'roofing',
+  appointmentLabel: 'Roof inspection',
+  intakeQuestions: 'Where have you noticed the problem?\nWhen did you first notice it?',
   name: 'Summit Roofing',
   owner: 'Alex Morgan',
   email: 'alex@example.com',
@@ -227,3 +232,66 @@ export const defaultSettings = {
   notifications: true,
   assistant: true,
 };
+
+/** A deliberate demo reset; real customer records never get renamed on industry changes. */
+export function industryDemo(id: string) {
+  const preset = getIndustry(id);
+  const settings = {
+    ...defaultSettings,
+    industry: preset.id as string,
+    name:
+      preset.id === 'roofing'
+        ? defaultSettings.name
+        : `Summit ${preset.id === 'custom' ? 'Services' : preset.label}`,
+    services: preset.services.join(', '),
+    intakeQuestions: preset.intakeQuestions.join('\n'),
+    appointmentLabel: preset.appointmentLabel,
+    faqs: 'Do you provide estimates? | The team confirms pricing after discussing your needs.',
+    restrictions:
+      'Never quote prices, promise emergency response or confirm availability. Escalate safety concerns to a human.',
+  };
+  const leads =
+    preset.id === 'roofing'
+      ? structuredClone(demoLeads)
+      : demoLeads.map((lead, index): Lead => ({
+          ...structuredClone(lead),
+          service: preset.services[index % preset.services.length],
+          notes: `Synthetic ${preset.label.toLowerCase()} enquiry. No real service has been arranged.`,
+          messages: lead.consent
+            ? [
+                {
+                  id: `${lead.id}-intro`,
+                  direction: 'outbound',
+                  text: `Hi ${lead.name.split(' ')[0]}, this is ${settings.name}'s virtual assistant. How can we help?`,
+                  time: '10:14 AM',
+                },
+                {
+                  id: `${lead.id}-request`,
+                  direction: 'inbound',
+                  text: `I need help with ${preset.services[index % preset.services.length].toLowerCase()} in ${lead.zip}. Can someone call me?`,
+                  time: '10:16 AM',
+                },
+              ]
+            : [
+                {
+                  id: `${lead.id}-callback`,
+                  direction: 'inbound',
+                  text: 'Missed call received. SMS consent is not recorded. Please call this customer.',
+                  time: '10:16 AM',
+                  author: 'System',
+                },
+              ],
+        }));
+  const bookings: Booking[] = [
+    {
+      id: 'demo-booking',
+      leadId: leads[1].id,
+      name: leads[1].name,
+      service: preset.appointmentLabel,
+      date: '2026-10-30',
+      time: '09:00',
+      status: 'Confirmed',
+    },
+  ];
+  return { settings, leads, bookings };
+}
