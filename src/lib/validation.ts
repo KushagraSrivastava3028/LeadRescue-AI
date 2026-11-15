@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { industryIds } from './industries';
 
 export const uuidSchema = z.string().uuid();
 export const emailSchema = z.string().trim().toLowerCase().email().max(254);
@@ -51,6 +52,7 @@ const base = { businessId: uuidSchema };
 export const workspaceMutationSchema = z.discriminatedUnion('action', [
   strict({
     action: z.literal('create-business'),
+    industry: z.enum(industryIds).default('custom'),
     name: z.string().trim().min(2).max(100),
     timezone: timezoneSchema,
     zipCodes: z
@@ -76,8 +78,11 @@ export const workspaceMutationSchema = z.discriminatedUnion('action', [
   strict({
     action: z.literal('settings'),
     ...base,
+    industry: z.enum(industryIds).optional(),
+    appointmentLabel: z.string().trim().min(2).max(80).optional(),
+    intakeQuestions: z.array(z.string().trim().min(3).max(200)).max(3).optional(),
     name: z.string().trim().min(2).max(100),
-    services: z.array(z.string().trim().min(1).max(100)).max(30),
+    services: z.array(z.string().trim().min(1).max(100)).min(1).max(30),
     zipCodes: z
       .array(z.string().regex(/^\d{5}$/))
       .min(1)

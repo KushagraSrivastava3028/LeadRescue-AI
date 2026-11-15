@@ -146,7 +146,7 @@ test('calendar saves a demo inspection request and shows it in the agenda', asyn
       mutations.push(new URL(request.url()).pathname);
   });
   await page.goto('/demo/calendar');
-  await page.getByRole('button', { name: 'Request inspection', exact: true }).click();
+  await page.getByRole('button', { name: 'Request appointment', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog
     .getByRole('combobox', { name: 'Customer', exact: true })
@@ -154,7 +154,7 @@ test('calendar saves a demo inspection request and shows it in the agenda', asyn
   await dialog.getByLabel('Date', { exact: true }).fill('2026-11-02');
   await dialog.getByLabel('Time', { exact: true }).fill('10:30');
   await expect(dialog).toContainText('No real calendar event is created.');
-  await dialog.getByRole('button', { name: 'Save inspection request', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Save appointment request', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('No calendar event was created.');
   await page.getByRole('button', { name: 'Agenda', exact: true }).click();
   const row = page.locator('.agenda-list > div').filter({ hasText: 'Jessica Wilson' });

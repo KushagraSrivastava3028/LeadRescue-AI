@@ -40,7 +40,7 @@ async function authorizedAppointment(token: string) {
     throw new HttpError(
       404,
       'request_unavailable',
-      'This inspection request is no longer available.',
+      'This appointment request is no longer available.',
     );
   return { grant, service, appointment: result.data };
 }
@@ -89,10 +89,10 @@ export async function POST(request: Request) {
         status: data,
         message:
           data === 'confirmed'
-            ? 'Your inspection is confirmed.'
+            ? 'Your appointment is confirmed.'
             : data === 'pending'
               ? "Thank you. Your request is being checked against the team's calendar. The team will confirm the booking."
-              : 'Thank you. Your request has been saved and the team will contact you to arrange the inspection.',
+              : 'Thank you. Your request has been saved and the team will contact you to arrange the appointment.',
       },
       data === 'confirmed' ? 200 : 202,
     );

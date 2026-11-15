@@ -100,7 +100,7 @@ export function InvitationAcceptance() {
             <br />
             on the team.
           </h1>
-          <p>Join your roofing team and help keep every enquiry moving.</p>
+          <p>Join your service team and help keep every enquiry moving.</p>
           <ul className="auth-benefits">
             <li>
               <Users />

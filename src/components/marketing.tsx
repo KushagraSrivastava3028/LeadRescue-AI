@@ -18,11 +18,12 @@ import {
   Menu,
 } from 'lucide-react';
 import { Brand } from './brand';
+import { industries } from '@/lib/industries';
 
 const faqs = [
   [
     'What’s included in the plan?',
-    'One business workspace, a shared two-way SMS inbox, AI qualification, lead summaries, inspection requests, and team access. The initial plan includes 500 outbound SMS segments and 500 AI replies each billing period. These are configurable launch settings.',
+    'One business workspace, a shared two-way SMS inbox, AI qualification, lead summaries, appointment requests, and team access. The initial plan includes 500 outbound SMS segments and 500 AI replies each billing period. These are configurable launch settings.',
   ],
   [
     'Are there any usage limits?',
@@ -87,7 +88,7 @@ export function Marketing({
                 <span>Meet your next job.</span>
               </h1>
               <p className="hero-description">
-                You’re on the roof. Your next customer is on the line.
+                You’re busy on the job. Your next customer is on the line.
                 <br className="desktop-break" /> Let LeadRescue follow up, start the conversation,
                 <br className="desktop-break" /> and bring the right enquiries back to you.
               </p>
@@ -111,7 +112,7 @@ export function Marketing({
                 </div>
                 <div>
                   <strong>Built for the people who build.</strong>
-                  <span>Purpose-made for independent roofing teams.</span>
+                  <span>Built for independent service businesses.</span>
                 </div>
               </div>
             </div>
@@ -179,6 +180,22 @@ export function Marketing({
               </div>
             </div>
           </main>
+          <section className="industry-section public-width" aria-labelledby="industries-title">
+            <span className="eyebrow">YOUR INDUSTRY. YOUR WORKFLOW.</span>
+            <h2 id="industries-title">One inbox. Made for the work you do.</h2>
+            <p>
+              Choose your industry, then tailor services, intake questions and appointment labels to
+              your business.
+            </p>
+            <div className="industry-tags">
+              {industries.map((industry) => (
+                <span key={industry.id}>{industry.label}</span>
+              ))}
+            </div>
+            <Link href="/demo" className="text-link">
+              Explore every industry in the demo <ArrowRight size={16} />
+            </Link>
+          </section>
           <section className="how-section" id="how-it-works">
             <div className="public-width">
               <div className="section-intro">
@@ -211,7 +228,7 @@ export function Marketing({
                     n: '03',
                     icon: Users,
                     title: 'Show up with confidence',
-                    text: 'See every enquiry in one inbox. Take over anytime and turn the next step into a booked inspection.',
+                    text: 'See every enquiry in one inbox. Take over anytime and turn the next step into a requested appointment.',
                   },
                 ].map((s) => (
                   <article className="step" key={s.n}>
@@ -290,7 +307,7 @@ export function Marketing({
               <span>Nothing to chase.</span>
             </h1>
             <p>
-              One simple plan for roofing contractors.
+              One simple plan for service businesses.
               <br />
               Start with a 14-day trial and see the difference.
             </p>
@@ -330,7 +347,7 @@ export function Marketing({
           </div>
           <div className="price-card">
             <div className="price-card-top">
-              <Sparkles size={16} /> BUILT FOR ROOFING CONTRACTORS
+              <Sparkles size={16} /> BUILT FOR SERVICE BUSINESSES
             </div>
             <div className="price-card-body">
               <h3>One less thing on your mind.</h3>
@@ -349,7 +366,7 @@ export function Marketing({
                   'Two-way SMS with eligible missed callers',
                   'AI qualification and clear lead summaries',
                   'A shared inbox for your whole team',
-                  'Inspection requests and calendar connection',
+                  'Appointment requests and calendar connection',
                   `${plan.paidSmsLimit} outbound SMS segments / month`,
                   `${plan.paidAiLimit} AI replies / month`,
                 ].map((x) => (

@@ -225,7 +225,7 @@ export function AuthScreen({ page }: { page: string }) {
             </li>
             <li>
               <ChartNoAxesCombined />
-              Built for roofing contractors
+              Built for service businesses
             </li>
           </ul>
           <div className="auth-testimonial">

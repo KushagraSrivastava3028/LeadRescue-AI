@@ -552,6 +552,80 @@ describe('billing and booking server entitlements', () => {
       ).getTime(),
     ).toBe(marker.getTime());
   });
+  it('uses the tenant industry intake questions and preserves answers for human follow-up', async () => {
+    await db.query(
+      "update public.business_profiles set industry='plumbing',services=array['Drain cleaning'],intake_questions=array['Which fixture needs help?','When did it start?'],appointment_label='Plumbing assessment' where business_id=$1",
+      [business],
+    );
+    const id = await message('inbound');
+    fake.qualify.mockResolvedValue({
+      service: 'Drain cleaning',
+      zip: '75201',
+      urgent: false,
+      summary: 'Kitchen drain is blocked',
+      intakeAnswers: [{ question: 'Which fixture needs help?', answer: 'Kitchen sink' }],
+    });
+    await qualifyMessage(business, id, conversation);
+    expect(fake.qualify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        industry: 'plumbing',
+        services: ['Drain cleaning'],
+        intakeQuestions: ['Which fixture needs help?', 'When did it start?'],
+      }),
+    );
+    const reply = await db.query<{ body: string }>(
+      'select body from public.messages where business_id=$1 and idempotency_key=$2',
+      [business, `reply:${id}`],
+    );
+    expect(reply.rows[0].body).toBe('When did it start?');
+    expect(
+      (await db.query<{ summary: string }>('select summary from public.leads where id=$1', [lead]))
+        .rows[0].summary,
+    ).toContain('Kitchen sink');
+  });
+  it('uses the configured appointment label when creating a customer-confirmed calendar event', async () => {
+    vi.stubEnv('CALENDAR_ENABLED', 'true');
+    const hours = Object.fromEntries(
+      ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day) => [
+        day,
+        { open: '08:00', close: '18:00', enabled: true },
+      ]),
+    );
+    await db.query(
+      "update public.business_profiles set industry='cleaning',appointment_label='Cleaning consultation',opening_hours=$2::jsonb where business_id=$1",
+      [business, JSON.stringify(hours)],
+    );
+    const calendarId = randomUUID(),
+      appointmentId = randomUUID();
+    await db.query(
+      "insert into public.calendar_connections(id,business_id,calendar_id,refresh_token_ciphertext,key_version,scopes) values($1,$2,'primary','synthetic','v1',array['synthetic'])",
+      [calendarId, business],
+    );
+    const start = new Date();
+    start.setUTCDate(start.getUTCDate() + 1);
+    start.setUTCHours(10, 0, 0, 0);
+    const end = new Date(start.getTime() + 3600000);
+    await db.query(
+      "insert into public.appointments(id,business_id,lead_id,calendar_connection_id,status,start_at,end_at,customer_confirmed_at,idempotency_key) values($1,$2,$3,$4,'pending',$5,$6,now(),'industry-booking')",
+      [appointmentId, business, lead, calendarId, start, end],
+    );
+    await bookAppointment(business, appointmentId);
+    expect(fake.book).toHaveBeenCalledWith(
+      expect.objectContaining({
+        businessId: business,
+        summary: 'Cleaning consultation request',
+        start,
+        end,
+      }),
+    );
+    expect(
+      (
+        await db.query<{ status: string }>('select status from public.appointments where id=$1', [
+          appointmentId,
+        ])
+      ).rows[0].status,
+    ).toBe('confirmed');
+  });
   it('calendar work queued before cancellation remains a callback request', async () => {
     vi.stubEnv('CALENDAR_ENABLED', 'true');
     const calendarId = randomUUID(),

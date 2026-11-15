@@ -37,13 +37,13 @@ export function InspectionConfirmation() {
       const data = await response.json();
       if (signal?.aborted) return;
       if (!response.ok) {
-        setError(data.error || 'This inspection request is unavailable.');
+        setError(data.error || 'This appointment request is unavailable.');
         return;
       }
       setDetails(data);
     } catch {
       if (!signal?.aborted)
-        setError('This inspection request could not be loaded. Try again shortly.');
+        setError('This appointment request could not be loaded. Try again shortly.');
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
@@ -63,7 +63,7 @@ export function InspectionConfirmation() {
       if (fragment) window.history.replaceState(null, '', window.location.pathname);
       if (!value || value.length > 2048) {
         setError(
-          'Open the confirmation link your roofing team shared with you. Links expire after 30 minutes.',
+          'Open the confirmation link your service team shared with you. Links expire after 30 minutes.',
         );
         setLoading(false);
         return;
@@ -145,16 +145,16 @@ export function InspectionConfirmation() {
           <h1>
             Let’s make time
             <br />
-            for your roof.
+            for your next step.
           </h1>
           <p>
-            Review the time your roofing team proposed. Your confirmation requests a final
+            Review the time your service team proposed. Your confirmation requests a final
             availability check.
           </p>
           <ul className="auth-benefits">
             <li>
               <CalendarDays />
-              60-minute inspection request
+              60-minute appointment request
             </li>
             <li>
               <ShieldCheck />
@@ -172,10 +172,10 @@ export function InspectionConfirmation() {
           </div>
           <h2>
             {appointment?.status === 'confirmed'
-              ? 'Inspection confirmed'
+              ? 'Appointment confirmed'
               : received
                 ? 'Request received'
-                : 'Review your inspection'}
+                : 'Review your appointment'}
           </h2>
           {loading ? (
             <p className="auth-subtitle" role="status">
@@ -211,7 +211,7 @@ export function InspectionConfirmation() {
                       onChange={(event) => setAccepted(event.target.checked)}
                     />
                     <span>
-                      I am the intended customer and I would like to request this inspection time.
+                      I am the intended customer and I would like to request this appointment time.
                     </span>
                   </label>
                   <button className="button primary full" disabled={!accepted || busy}>
@@ -242,7 +242,7 @@ export function InspectionConfirmation() {
             </p>
           )}
           <div className="auth-card-footer">
-            Questions or changes? Contact your roofing team directly.
+            Questions or changes? Contact your service team directly.
           </div>
         </section>
       </main>

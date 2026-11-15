@@ -7,8 +7,8 @@
 ### Recover missed enquiries. Qualify leads. Keep your team in control.
 
 <p>
-A full-stack missed-call recovery platform for U.S. roofing teams, combining
-eligible SMS follow-up, AI qualification, a shared inbox, inspection requests
+A full-stack missed-call recovery platform for U.S. service businesses, combining
+eligible SMS follow-up, AI qualification, a shared inbox, appointment requests
 and subscription management.
 </p>
 
@@ -40,9 +40,9 @@ and subscription management.
 
 ## Overview
 
-**LeadRescue AI** helps roofing teams keep eligible missed-call enquiries moving.
+**LeadRescue AI** helps service businesses keep eligible missed-call enquiries moving.
 The workspace brings conversations, customer details, lead status, callback tasks
-and inspection requests together, with explicit human takeover when needed.
+and appointment requests together, with explicit human takeover when needed.
 
 > **Project status:** Local implementation is verified; live services are not
 > activated and the app is not deployed. No real messages, charges, calls, emails
@@ -72,18 +72,24 @@ outcomes are retained for reconciliation instead of blindly retried.
 
 ## Features
 
-| Area                  | Implemented capabilities                                                                         |
-| --------------------- | ------------------------------------------------------------------------------------------------ |
-| Responsive workspace  | Overview metrics, recent enquiries, filters and mobile navigation                                |
-| Shared inbox          | Conversation history, manual takeover/resume, reply intents and callback tasks                   |
-| Lead management       | Enquiry creation, status updates, owner-confirmed won jobs and private exports                   |
-| Accounts and teams    | Signup, verification, recovery, MFA, invitations and owner/staff/viewer permissions              |
-| Business settings     | Services, ZIP codes, timezone, weekday hours, FAQs and assistant restrictions                    |
-| Eligible recovery     | Signed call/SMS callbacks, consent/suppression gates, quiet hours and cooldowns                  |
-| AI qualification      | Bounded extraction, validated output, controlled reply templates and spending ceilings           |
-| Inspection scheduling | Customer confirmation, availability checks, duration/buffer rules and Google OAuth               |
-| Subscriptions         | Stripe checkout/portal adapters, trial prerequisites, usage caps and subscription reconciliation |
-| Operations            | Durable PostgreSQL jobs/outbox, retries, deduplication, health checks and audited admin holds    |
+Choose **Roofing, Plumbing, HVAC, Electrical, Landscaping, Cleaning, Pest Control**
+or **Other / custom services**. Each business owns its service list, up to three
+intake questions and an appointment label. Settings never rename existing customer
+records. The demo industry picker loads a separate synthetic sample workflow.
+See [multi-industry setup](docs/MULTI_INDUSTRY.md).
+
+| Area                   | Implemented capabilities                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------ |
+| Responsive workspace   | Overview metrics, recent enquiries, filters and mobile navigation                                |
+| Shared inbox           | Conversation history, manual takeover/resume, reply intents and callback tasks                   |
+| Lead management        | Enquiry creation, status updates, owner-confirmed won jobs and private exports                   |
+| Accounts and teams     | Signup, verification, recovery, MFA, invitations and owner/staff/viewer permissions              |
+| Business settings      | Services, ZIP codes, timezone, weekday hours, FAQs and assistant restrictions                    |
+| Eligible recovery      | Signed call/SMS callbacks, consent/suppression gates, quiet hours and cooldowns                  |
+| AI qualification       | Bounded extraction, validated output, controlled reply templates and spending ceilings           |
+| Appointment scheduling | Customer confirmation, availability checks, duration/buffer rules and Google OAuth               |
+| Subscriptions          | Stripe checkout/portal adapters, trial prerequisites, usage caps and subscription reconciliation |
+| Operations             | Durable PostgreSQL jobs/outbox, retries, deduplication, health checks and audited admin holds    |
 
 The demo uses synthetic browser-local data. Real integration behavior requires
 provider configuration and staging verification.
@@ -92,7 +98,7 @@ provider configuration and staging verification.
 
 ```mermaid
 flowchart LR
-    Team[Roofing team] --> Web[Next.js website and workspace]
+    Team[Service business team] --> Web[Next.js website and workspace]
     Web --> Auth[Supabase Auth]
     Web --> API[Server route handlers]
     API --> DB[(PostgreSQL: tenant data, usage and outbox)]
@@ -160,7 +166,7 @@ npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:3000** for the product site, or **http://127.0.0.1:3000/demo** for the workspace. No environment file is required to explore the demo. It includes working lead filters, conversation selection, human takeover/resume, local replies, lead creation/status updates, callback tasks, inspection requests, calendar agenda, settings, exports, and billing previews. All demo changes stay in browser storage; the Help dialog can reset them. Demo actions never send provider requests. The real `/app` route always requires verified Supabase identity and membership.
+Open **http://127.0.0.1:3000** for the product site, or **http://127.0.0.1:3000/demo** for the workspace. No environment file is required to explore the demo. It includes working lead filters, conversation selection, human takeover/resume, local replies, lead creation/status updates, callback tasks, appointment requests, calendar agenda, settings, exports, and billing previews. All demo changes stay in browser storage; the Help dialog can reset them. Demo actions never send provider requests. The real `/app` route always requires verified Supabase identity and membership.
 
 Public routes: `/`, `/pricing`, `/signin`, `/signup`, `/verify-email`, `/forgot-password`, `/reset-password`, `/two-factor`, `/privacy`, `/terms`. Workspace routes under `/demo` or `/app`: overview, `/inbox`, `/leads`, `/calendar`, `/assistant`, `/settings`, `/billing`. `/admin` and its API require separately bootstrapped platform authority and verified MFA. `/invite` and `/confirm-inspection` use short-lived recipient links with tokens in URL fragments, then explicit POST actions.
 
@@ -181,7 +187,7 @@ Optional integrations are disabled until their explicit enable flag and required
 - **Consent:** a missed call is never consent. Operators must validate the approved disclosure/evidence, sender/scope, country and SMS capability before automation can send. STOP revokes/suppresses queued work. Missing consent creates a callback opportunity. The consent API stores an evidence-review request, not an unverified permission grant.
 - **AI:** enable a selected pinned OpenAI snapshot and reviewed per-call/platform cost limits. It extracts facts only; it has no tools, booking authority, or tenant selector. Replies use bounded application templates. Real model evaluation and account retention review are launch gates.
 - **Billing:** the initial configurable plan is $299 USD/month, 500 outbound segments and 500 AI replies; the trial is 14 days with 100-segment/AI allowances. Verify the provider price matches reviewed product terms. Merchant approval is required, including actual India-entity availability where applicable. Checkout requires explicit recurring terms; only verified provider state enables paid usage. Overage charging is off. Trial activation requires business/phone verification, messaging approval, and a successful real test; the browser cannot set these flags.
-- **Calendar:** Google OAuth uses exact callback/state/PKCE and two narrow scopes, with tenant-bound AES-GCM refresh-token encryption. The team requests a slot, then shares a private link for the customer's explicit confirmation. A booking remains requested/pending until provider creation and local persistence succeed. Unknown outcomes retain the slot for reconciliation. Current inspections are 60 minutes with a 15-minute buffer.
+- **Calendar:** Google OAuth uses exact callback/state/PKCE and two narrow scopes, with tenant-bound AES-GCM refresh-token encryption. The team requests a slot, then shares a private link for the customer's explicit confirmation. A booking remains requested/pending until provider creation and local persistence succeed. Unknown outcomes retain the slot for reconciliation. Current appointments are 60 minutes with a 15-minute buffer.
 
 The operator steps, APIs, SQL boundaries, and external acceptance procedure are detailed in [docs/DATABASE.md](docs/DATABASE.md), [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md), and [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md). There is no browser switch that declares a business verified or a messaging policy approved.
 
@@ -246,7 +252,7 @@ Backend permissions are enforced independently of UI controls.
 | ----------------------------------------------- | :----: | :---: | :---: |
 | Read own workspace and enquiries                |  Yes   |  Yes  |  Yes  |
 | Handle leads, callbacks and conversations       |   —    |  Yes  |  Yes  |
-| Request an inspection                           |   —    |  Yes  |  Yes  |
+| Request an appointment                          |   —    |  Yes  |  Yes  |
 | Confirm a won job                               |   —    |   —   |  Yes  |
 | Manage business settings, team and integrations |   —    |   —   |  Yes  |
 | Manage billing and private exports              |   —    |   —   |  Yes  |

@@ -45,7 +45,9 @@ import {
   X,
 } from 'lucide-react';
 import { Brand } from './brand';
-import { Booking, defaultSettings, demoLeads, Lead, LeadStatus } from '@/lib/demo';
+import { Booking, defaultSettings, demoLeads, industryDemo, Lead, LeadStatus } from '@/lib/demo';
+import { industries, getIndustry, parseServices, parseQuestions } from '@/lib/industries';
+import { nextQuestion } from '@/lib/domain/recovery';
 
 type Modal =
   'new-lead' | 'booking' | 'plan' | 'notifications' | 'invite' | 'help' | 'callback' | null;
@@ -121,7 +123,7 @@ function normalizeLive(data: LiveData): Lead[] {
         .toUpperCase(),
       color: ['blue', 'green', 'purple', 'gray'][i % 4],
       phone: String(contact.phone || ''),
-      service: String(l.service || 'Roofing enquiry'),
+      service: String(l.service || 'Service enquiry'),
       status: statuses[raw] || 'New enquiry',
       received: l.created_at
         ? new Date(String(l.created_at)).toLocaleDateString('en-US', {
@@ -227,6 +229,8 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
   const active = leads.find((l) => l.id === selected) || leads[0];
   const role = demo ? 'owner' : live?.role || 'viewer';
   const businessName = demo ? settings.name : String(live?.business?.name || 'Your workspace');
+  const serviceOptions = parseServices(settings.services);
+  const requestLabel = 'Request appointment';
   const userName = demo ? 'Alex Morgan' : String(live?.user?.name || 'Your account');
   useEffect(() => {
     if (!demo) return;
@@ -274,7 +278,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
             name: String(
               data.leads?.find((l: JsonRecord) => l.id === a.lead_id)?.contacts?.name || 'Customer',
             ),
-            service: 'Roof inspection',
+            service: String(data.profile?.appointment_label || 'Service appointment'),
             date: dt.toLocaleDateString('en-CA', {
               timeZone: String(data.business?.timezone || 'America/Chicago'),
             }),
@@ -297,6 +301,9 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
           ...prev,
           name: String(data.business?.name || prev.name),
           timezone: String(data.business?.timezone || prev.timezone),
+          industry: String(p.industry || 'roofing'),
+          intakeQuestions: Array.isArray(p.intake_questions) ? p.intake_questions.join('\n') : '',
+          appointmentLabel: String(p.appointment_label || 'Service appointment'),
           services: Array.isArray(p.services) ? p.services.join(', ') : prev.services,
           zipCodes: Array.isArray(p.zip_codes) ? p.zip_codes.join(', ') : prev.zipCodes,
           faqs: Array.isArray(p.faqs)
@@ -599,7 +606,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
         <div className="conversation-footer">
           <div className="conversation-details">
             <span>
-              <Wrench size={16} /> {active.service === 'Roof leak' ? 'Roof repair' : active.service}
+              <Wrench size={16} /> {active.service}
             </span>
             <span>
               <MapPin size={17} /> {active.zip || 'ZIP unknown'}
@@ -674,7 +681,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                 disabled={role === 'viewer'}
               >
                 <CalendarDays size={16} />
-                Request inspection
+                {requestLabel}
               </button>
             </div>
           </div>
@@ -748,6 +755,22 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
   }
   async function saveSettings(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const services = parseServices(settings.services);
+    const questions = parseQuestions(settings.intakeQuestions);
+    if (
+      !services.length ||
+      services.length > 30 ||
+      services.some((s) => s.length > 100) ||
+      questions.length > 3 ||
+      questions.some((q) => q.length < 3 || q.length > 200) ||
+      settings.appointmentLabel.trim().length < 2 ||
+      settings.appointmentLabel.length > 80
+    ) {
+      setToast(
+        'Use 1–30 services (up to 80 characters), up to 3 intake questions (3–200 characters), and a 2–80 character appointment label.',
+      );
+      return;
+    }
     if (demo) {
       persist();
       setToast('Demo settings saved in this browser.');
@@ -766,6 +789,9 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
     }
     await mutate('settings', {
       name: settings.name,
+      industry: settings.industry,
+      appointmentLabel: settings.appointmentLabel,
+      intakeQuestions: parseQuestions(settings.intakeQuestions),
       services: settings.services
         .split(',')
         .map((s) => s.trim())
@@ -835,7 +861,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
         await mutate('request-appointment', {
           leadId: active.id,
           startAt,
-          note: 'Inspection requested by the team; awaiting customer confirmation.',
+          note: 'Appointment requested by the team; awaiting customer confirmation.',
         });
         setModal(null);
         return;
@@ -853,7 +879,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
       setBookings(next);
       persist(leads, settings, next);
       setModal(null);
-      setToast('Inspection request saved in the demo. No calendar event was created.');
+      setToast('Appointment request saved in the demo. No calendar event was created.');
     } else if (modal === 'callback' && active) {
       if (demo) {
         const next = leads.map((l) =>
@@ -904,7 +930,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
           onClick={() =>
             setToast(
               demo
-                ? 'You’re exploring the Summit Roofing demo.'
+                ? `You’re exploring the ${businessName} demo.`
                 : 'Your active business is ' + businessName,
             )
           }
@@ -915,6 +941,35 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
           <span>{businessName}</span>
           <ChevronDown size={15} />
         </button>
+        {demo && (
+          <label className="industry-demo-picker">
+            Load sample industry
+            <select
+              aria-label="Load sample industry"
+              value={settings.industry}
+              onChange={(e) => {
+                const sample = industryDemo(e.target.value);
+                setSettings(sample.settings);
+                setLeads(sample.leads);
+                setBookings(sample.bookings);
+                setSelected(sample.leads[0].id);
+                setAssistantReply('');
+                setDraft('');
+                setQuery('');
+                setFilter('All');
+                persist(sample.leads, sample.settings, sample.bookings);
+                setToast('Sample industry loaded. Only browser demo data was replaced.');
+              }}
+            >
+              {industries.map((industry) => (
+                <option key={industry.id} value={industry.id}>
+                  {industry.label}
+                </option>
+              ))}
+            </select>
+            <small>Replaces browser demo data only.</small>
+          </label>
+        )}
         <div className="sidebar-caption">WORKSPACE</div>
         <nav className="sidebar-nav">
           {navItems.map((item) => (
@@ -1073,7 +1128,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                           id: 'demo-daniel',
                         },
                         {
-                          name: 'A new storm damage enquiry arrived',
+                          name: 'A new service enquiry arrived',
                           time: '1 hour ago',
                           id: 'demo-emily',
                         },
@@ -1183,7 +1238,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                     : section === 'leads'
                       ? 'Every enquiry, every detail, and the next thing to do.'
                       : section === 'calendar'
-                        ? 'Your inspections and requests, with a little room to breathe.'
+                        ? 'Your appointments and requests, with a little room to breathe.'
                         : section === 'assistant'
                           ? 'Helpful by design. Guided by you.'
                           : section === 'billing'
@@ -1226,7 +1281,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                 disabled={!active}
               >
                 <Plus size={17} />
-                Request inspection
+                {requestLabel}
               </button>
             ) : null}
           </div>
@@ -1264,6 +1319,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                   const form = new FormData(e.currentTarget);
                   void mutate('create-business', {
                     name: form.get('name'),
+                    industry: form.get('industry'),
                     timezone: form.get('timezone'),
                     zipCodes: String(form.get('zipCodes'))
                       .split(',')
@@ -1273,8 +1329,18 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                 }}
               >
                 <label>
+                  Industry
+                  <select name="industry" aria-label="Industry" defaultValue="custom">
+                    {industries.map((industry) => (
+                      <option key={industry.id} value={industry.id}>
+                        {industry.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
                   Business name
-                  <input name="name" required maxLength={100} placeholder="Summit Roofing" />
+                  <input name="name" required maxLength={100} placeholder="Your business name" />
                 </label>
                 <label>
                   Service ZIP codes
@@ -1368,7 +1434,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                       },
                       {
                         key: 'inspectionsBooked',
-                        label: 'Inspections booked',
+                        label: 'Appointments booked',
                         icon: CalendarDays,
                         color: 'blue',
                         trend: '+2',
@@ -1600,7 +1666,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                     <Info size={17} />
                     <span>
                       {demo
-                        ? 'You’re viewing a sample calendar. New inspections are saved as demo requests.'
+                        ? 'You’re viewing a sample calendar. New appointments are saved as demo requests.'
                         : 'Requests remain unconfirmed until customer confirmation and successful provider creation.'}
                     </span>
                     <button
@@ -1741,7 +1807,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                           <div className="empty-state">
                             <CalendarDays />
                             <h3>A little room for opportunity.</h3>
-                            <p>Your inspection requests will appear here.</p>
+                            <p>Your appointment requests will appear here.</p>
                           </div>
                         )}
                       </div>
@@ -1750,13 +1816,13 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                   <div className="calendar-legend">
                     <span>
                       <i />
-                      Inspection
+                      Appointment
                     </span>
                     <span>
                       <i className="request" />
                       Awaiting confirmation
                     </span>
-                    <span>{settings.timezone} · 60-minute inspections · 15-minute buffer</span>
+                    <span>{settings.timezone} · 60-minute appointments · 15-minute buffer</span>
                   </div>
                 </>
               )}
@@ -1867,19 +1933,23 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                           const text = assistantInput.toLowerCase();
                           setAssistantReply(
                             /secret|ignore|system|prompt|password|api key/.test(text)
-                              ? 'I can help with your roofing enquiry. What kind of work do you need help with?'
+                              ? nextQuestion(
+                                  { service: null, zip: null, urgent: false },
+                                  businessName,
+                                  { services: serviceOptions },
+                                )
                               : /price|cost|insurance|warranty/.test(text)
-                                ? 'Our team can discuss that after learning more about your roof. Would you like to request a callback?'
+                                ? 'Our team can discuss that after learning more about your needs. Would you like to request a callback?'
                                 : /fire|collapse|danger|electri/.test(text)
                                   ? 'Please move to a safe location and contact local emergency services if there is immediate danger. I’ll flag this for the team.'
-                                  : 'Thanks for getting in touch with Summit Roofing! Could you tell me your ZIP code and a little more about the roofing help you need?',
+                                  : `Thanks for getting in touch with ${businessName}! ${parseQuestions(settings.intakeQuestions)[0] || 'What service do you need?'} Could you also share your ZIP code?`,
                           );
                         }}
                       >
                         <div className="search-input">
                           <MessageSquare size={17} />
                           <input
-                            placeholder="e.g. Can you help with a roof leak?"
+                            placeholder={`e.g. Can you help with ${serviceOptions[0]?.toLowerCase() || 'a service request'}?`}
                             aria-label="Try a demo message"
                             value={assistantInput}
                             onChange={(e) => setAssistantInput(e.target.value)}
@@ -1965,6 +2035,72 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                                 <option key={t}>{t}</option>
                               ))}
                             </select>
+                          </label>
+                          <label>
+                            Industry
+                            <select
+                              aria-label="Industry"
+                              value={settings.industry}
+                              onChange={(e) =>
+                                setSettings({ ...settings, industry: e.target.value })
+                              }
+                              disabled={role !== 'owner'}
+                            >
+                              {industries.map((industry) => (
+                                <option key={industry.id} value={industry.id}>
+                                  {industry.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Appointment label
+                            <input
+                              value={settings.appointmentLabel}
+                              onChange={(e) =>
+                                setSettings({ ...settings, appointmentLabel: e.target.value })
+                              }
+                              required
+                              minLength={2}
+                              maxLength={80}
+                            />
+                          </label>
+                          <div className="full-field">
+                            <button
+                              type="button"
+                              className="button secondary small"
+                              disabled={role !== 'owner'}
+                              onClick={() => {
+                                const preset = getIndustry(settings.industry);
+                                setSettings({
+                                  ...settings,
+                                  services: preset.services.join(', '),
+                                  intakeQuestions: preset.intakeQuestions.join('\n'),
+                                  appointmentLabel: preset.appointmentLabel,
+                                });
+                              }}
+                            >
+                              Apply industry defaults
+                            </button>
+                            <p>
+                              Replaces service, intake and appointment fields in this form. Review
+                              them before saving. Existing enquiries stay unchanged.
+                            </p>
+                          </div>
+                          <label className="full-field">
+                            Intake questions · one per line (up to 3)
+                            <textarea
+                              value={settings.intakeQuestions}
+                              onChange={(e) =>
+                                setSettings({ ...settings, intakeQuestions: e.target.value })
+                              }
+                              rows={3}
+                              maxLength={602}
+                            />
+                            <small>
+                              Ask about the work only. Do not request payment details or sensitive
+                              personal information.
+                            </small>
                           </label>
                           <label className="full-field">
                             Services offered
@@ -2224,7 +2360,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                         {[
                           ['New enquiries', 'Know when a new opportunity comes in.'],
                           ['Callback requests', 'A customer needs a human. We’ll let you know.'],
-                          ['Inspection requests', 'Keep the next appointment on your radar.'],
+                          ['Appointment requests', 'Keep the next appointment on your radar.'],
                           [
                             'Trial & billing updates',
                             'Essential account notifications stay enabled.',
@@ -2303,7 +2439,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                         {[
                           'A shared inbox and unlimited team members',
                           'Two-way SMS and AI lead qualification',
-                          'Inspection requests and calendar integration',
+                          'Appointment requests and calendar integration',
                           `${paidPlan.paidSmsLimit} outbound SMS segments + ${paidPlan.paidAiLimit} AI replies / month`,
                         ].map((x) => (
                           <li key={x}>
@@ -2523,7 +2659,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
               {modal === 'new-lead'
                 ? 'Add an enquiry to your demo workspace.'
                 : modal === 'booking'
-                  ? `Save an inspection request for ${active?.name || 'your customer'}. Requests are not confirmed appointments.`
+                  ? `Save an appointment request for ${active?.name || 'your customer'}. Requests are not confirmed appointments.`
                   : modal === 'callback'
                     ? `Save a callback task for ${active?.name || 'this customer'}.`
                     : modal === 'invite'
@@ -2553,13 +2689,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                     <label>
                       Service
                       <select name="service">
-                        {[
-                          'Roof leak',
-                          'Roof inspection',
-                          'Roof replacement',
-                          'Storm damage',
-                          'Gutter repair',
-                        ].map((s) => (
+                        {serviceOptions.map((s) => (
                           <option key={s}>{s}</option>
                         ))}
                       </select>
@@ -2665,7 +2795,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                   {modal === 'new-lead'
                     ? 'Add demo enquiry'
                     : modal === 'booking'
-                      ? 'Save inspection request'
+                      ? 'Save appointment request'
                       : modal === 'callback'
                         ? 'Save callback request'
                         : demo
@@ -2736,7 +2866,7 @@ export function Workspace({ demo, section }: { demo: boolean; section: string })
                   <div>
                     <span>3</span>
                     <p>
-                      <strong>Keep it moving.</strong> Request an inspection or mark a job won.
+                      <strong>Keep it moving.</strong> Request an appointment or mark a job won.
                     </p>
                   </div>
                 </div>

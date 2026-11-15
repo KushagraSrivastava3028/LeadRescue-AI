@@ -19,7 +19,7 @@ export const mainReadQueries: ReadQuery[] = [
     id: 'profile',
     screen: 'Every workspace screen',
     source: 'src/app/api/workspace/route.ts',
-    sql: 'select name,services,zip_codes,timezone,opening_hours,faqs,escalation_phone,assistant_restrictions,quiet_start,quiet_end from public.business_profiles where business_id=$1',
+    sql: 'select name,industry,intake_questions,appointment_label,services,zip_codes,timezone,opening_hours,faqs,escalation_phone,assistant_restrictions,quiet_start,quiet_end from public.business_profiles where business_id=$1',
     params: tenant,
   },
   {
